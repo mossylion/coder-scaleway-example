@@ -1,0 +1,29 @@
+#cloud-config
+cloud_final_modules:
+  - [scripts-user, always]
+hostname: ${hostname}
+users:
+  - name: ${linux_user}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+groups:
+  - docker
+system_info:
+  default_user:
+    groups: [ docker ]
+# Automatically grow the partition
+growpart:
+  mode: auto
+  devices: ['/']
+  ignore_growroot_disabled: false
+runcmd:
+  - systemctl stop systemd-resolved
+  - echo -e "[Resolve]\nDNS=2001:67c:2b0::4\nFallbackDNS=2001:67c:27e4::64" > /etc/systemd/resolved.conf
+  - systemctl start systemd-resolved
+  - ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+  - curl -sSL https://get.docker.com | sh
+  - systemctl enable docker --now
+  - sudo usermod -aG docker ${linux_user}
+  - newgrp docker
+  - curl -L https://coder.com/install.sh | su ${linux_user} -c "HOME=/home/coder sh"
+  - sudo systemctl enable --now coder
