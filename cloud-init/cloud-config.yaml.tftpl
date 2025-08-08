@@ -4,8 +4,9 @@ cloud_final_modules:
 hostname: ${hostname}
 users:
   - name: ${linux_user}
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: ALL=(ALL) ALL
     shell: /bin/bash
+    groups: [sudo, docker]
 groups:
   - docker
 system_info:
@@ -16,14 +17,30 @@ growpart:
   mode: auto
   devices: ['/']
   ignore_growroot_disabled: false
+# Install required packages
+packages:
+  - curl
+  - wget
+  - gnupg
+  - ca-certificates
+# Update system and install Docker
 runcmd:
   - systemctl stop systemd-resolved
   - echo -e "[Resolve]\nDNS=2001:67c:2b0::4\nFallbackDNS=2001:67c:27e4::64" > /etc/systemd/resolved.conf
   - systemctl start systemd-resolved
   - ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
-  - curl -sSL https://get.docker.com | sh
+  # Verify Docker installation script
+  - wget -O /tmp/get-docker.sh https://get.docker.com
+  - sha256sum /tmp/get-docker.sh
+  - chmod +x /tmp/get-docker.sh
+  - /tmp/get-docker.sh
   - systemctl enable docker --now
-  - sudo usermod -aG docker ${linux_user}
-  - newgrp docker
-  - curl -L https://coder.com/install.sh | su ${linux_user} -c "HOME=/home/coder sh"
-  - sudo systemctl enable --now coder
+  - usermod -aG docker ${linux_user}
+  # Verify Coder installation script  
+  - wget -O /tmp/install-coder.sh https://coder.com/install.sh
+  - sha256sum /tmp/install-coder.sh
+  - chmod +x /tmp/install-coder.sh
+  - su ${linux_user} -c "HOME=/home/${linux_user} /tmp/install-coder.sh"
+  - systemctl enable --now coder
+  # Clean up downloaded scripts
+  - rm -f /tmp/get-docker.sh /tmp/install-coder.sh
